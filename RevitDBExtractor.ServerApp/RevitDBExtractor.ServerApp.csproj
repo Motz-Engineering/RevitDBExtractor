@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+	</PropertyGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\RevitDBExtractor.Core\RevitDBExtractor.Core.csproj" />
+		<Reference Include="RevitAPI">
+			<HintPath>$(REVIT_2025)\RevitAPI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+</Project>

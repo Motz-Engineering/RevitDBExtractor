@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<Nullable>enable</Nullable>
+		<LangVersion>latest</LangVersion>
+	</PropertyGroup>
+	<ItemGroup>
+		<!-- Revit API refs – CopyLocal=false keeps DLL size tiny -->
+		<Reference Include="RevitAPI">
+			<HintPath>$(REVIT_2025)\RevitAPI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<Reference Include="RevitAPIUI">
+			<HintPath>$(REVIT_2025)\RevitAPIUI.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+		<PackageReference Include="Dapper" Version="2.0.123" />
+	</ItemGroup>
+</Project>
