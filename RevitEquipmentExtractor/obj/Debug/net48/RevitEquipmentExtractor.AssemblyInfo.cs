@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("RevitEquipmentExtractor")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+71375476717eb8901755abd076135a860d787c2f")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+8a0c33a25752bb10997a2dc1cbaa51f5fb8a20b8")]
 [assembly: System.Reflection.AssemblyProductAttribute("RevitEquipmentExtractor")]
 [assembly: System.Reflection.AssemblyTitleAttribute("RevitEquipmentExtractor")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
