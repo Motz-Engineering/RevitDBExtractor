@@ -25,19 +25,19 @@
 
   <ItemGroup>
     <Reference Include="RevitAPI">
-      <HintPath Condition="'$(Configuration)'=='Revit2021'">$(ProgramFiles)\Autodesk\Revit 2021\RevitAPI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2022'">$(ProgramFiles)\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2023'">$(ProgramFiles)\Autodesk\Revit 2023\RevitAPI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2024'">$(ProgramFiles)\Autodesk\Revit 2024\RevitAPI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2025'">$(ProgramFiles)\Autodesk\Revit 2025\RevitAPI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2021'">C:\Program Files\Autodesk\Revit 2021\RevitAPI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2022'">C:\Program Files\Autodesk\Revit 2022\RevitAPI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2023'">C:\Program Files\Autodesk\Revit 2023\RevitAPI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2024'">C:\Program Files\Autodesk\Revit 2024\RevitAPI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2025'">C:\Program Files\Autodesk\Revit 2025\RevitAPI.dll</HintPath>
       <Private>False</Private>
     </Reference>
     <Reference Include="RevitAPIUI">
-      <HintPath Condition="'$(Configuration)'=='Revit2021'">$(ProgramFiles)\Autodesk\Revit 2021\RevitAPIUI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2022'">$(ProgramFiles)\Autodesk\Revit 2022\RevitAPIUI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2023'">$(ProgramFiles)\Autodesk\Revit 2023\RevitAPIUI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2024'">$(ProgramFiles)\Autodesk\Revit 2024\RevitAPIUI.dll</HintPath>
-      <HintPath Condition="'$(Configuration)'=='Revit2025'">$(ProgramFiles)\Autodesk\Revit 2025\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2021'">C:\Program Files\Autodesk\Revit 2021\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2022'">C:\Program Files\Autodesk\Revit 2022\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2023'">C:\Program Files\Autodesk\Revit 2023\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2024'">C:\Program Files\Autodesk\Revit 2024\RevitAPIUI.dll</HintPath>
+      <HintPath Condition="'$(Configuration)'=='Revit2025'">C:\Program Files\Autodesk\Revit 2025\RevitAPIUI.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
