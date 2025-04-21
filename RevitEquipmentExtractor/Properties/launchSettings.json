@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "RevitEquipmentExtractor": {
+      "commandName": "Project",
+      "commandLineArgs": ""
+    }
+  }
+} 
