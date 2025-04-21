@@ -14,8 +14,8 @@ namespace RevitEquipmentExtractor
 {
     public class RevitEquipmentExtractor
     {
-        // Access database connection string
-        private const string ConnectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=S:\Engineering\_00 Transmittal and Deliverable Logs\Deliverables-Testing - Copy.accdb;";
+        // Access database connection string - will be set in constructor
+        private readonly string ConnectionString;
         
         // Dictionary to map Revit versions to their corresponding API versions
         private static readonly Dictionary<string, string> RevitVersionMap = new Dictionary<string, string>
@@ -26,6 +26,30 @@ namespace RevitEquipmentExtractor
             { "2024", "Revit2024" },
             { "2025", "Revit2025" }
         };
+        
+        // Constructor to set up the database connection
+        public RevitEquipmentExtractor(string databasePath = null)
+        {
+            // Try to get database path from environment variable first
+            string dbPath = Environment.GetEnvironmentVariable("REVIT_DB_PATH");
+            
+            // If not set in environment, use the provided path or default
+            if (string.IsNullOrEmpty(dbPath))
+            {
+                dbPath = databasePath ?? @"S:\Engineering\_00 Transmittal and Deliverable Logs\Deliverables-Testing - Copy.accdb";
+            }
+            
+            // Verify the database file exists
+            if (!File.Exists(dbPath))
+            {
+                throw new FileNotFoundException($"Database file not found: {dbPath}");
+            }
+            
+            // Set the connection string
+            ConnectionString = $"Provider=Microsoft.ACE.OLEDB.12.0;Data Source={dbPath};";
+            
+            Console.WriteLine($"Using database: {dbPath}");
+        }
         
         // Main method that runs the extraction process
         public void ExtractEquipmentData(string specificProjectNumber = null)
@@ -560,20 +584,31 @@ namespace RevitEquipmentExtractor
             Console.WriteLine("Revit Equipment Extractor");
             Console.WriteLine("-------------------------");
             
-            RevitEquipmentExtractor extractor = new RevitEquipmentExtractor();
-            
-            // Check if a specific project number was provided
-            string projectNumber = args.Length > 0 ? args[0] : null;
-            
-            if (projectNumber != null)
+            try
             {
-                Console.WriteLine($"Running extraction for project: {projectNumber}");
-                extractor.ExtractEquipmentData(projectNumber);
+                // Check if a specific project number was provided
+                string projectNumber = args.Length > 0 ? args[0] : null;
+                
+                // Create the extractor with optional database path
+                string dbPath = args.Length > 1 ? args[1] : null;
+                RevitEquipmentExtractor extractor = new RevitEquipmentExtractor(dbPath);
+                
+                if (projectNumber != null)
+                {
+                    Console.WriteLine($"Running extraction for project: {projectNumber}");
+                    extractor.ExtractEquipmentData(projectNumber);
+                }
+                else
+                {
+                    Console.WriteLine("No project number specified. Running extraction for all projects.");
+                    extractor.ExtractEquipmentData();
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Console.WriteLine("No project number specified. Running extraction for all projects.");
-                extractor.ExtractEquipmentData();
+                Console.WriteLine($"Error: {ex.Message}");
+                Console.WriteLine("Usage: RevitEquipmentExtractor.exe [projectNumber] [databasePath]");
+                Console.WriteLine("Example: RevitEquipmentExtractor.exe 12345 C:\\path\\to\\database.accdb");
             }
             
             Console.WriteLine("Press any key to exit.");

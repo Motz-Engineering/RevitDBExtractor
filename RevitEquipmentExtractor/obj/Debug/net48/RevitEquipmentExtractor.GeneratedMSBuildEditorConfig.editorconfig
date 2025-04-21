@@ -1,0 +1,8 @@
+is_global = true
+build_property.RootNamespace = RevitEquipmentExtractor
+build_property.ProjectDir = C:\Users\Matthew Houston\source\repos\RevitDBExtractor\RevitEquipmentExtractor\
+build_property.EnableComHosting = 
+build_property.EnableGeneratedComInterfaceComImportInterop = 
+build_property.CsWinRTUseWindowsUIXamlProjections = false
+build_property.EffectiveAnalysisLevelStyle = 
+build_property.EnableCodeStyleSeverity = 
