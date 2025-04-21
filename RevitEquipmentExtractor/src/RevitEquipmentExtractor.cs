@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Data;
-using System.Data.SqlClient;
+using System.Data.OleDb;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
@@ -14,50 +14,97 @@ namespace RevitEquipmentExtractor
 {
     public class RevitEquipmentExtractor
     {
-        // Replace with your database connection string
-        private const string ConnectionString = "Server=YourServer;Database=YourDatabase;Trusted_Connection=True;";
+        // Access database connection string
+        private const string ConnectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=S:\Engineering\_00 Transmittal and Deliverable Logs\Deliverables-Testing - Copy.accdb;";
+        
+        // Dictionary to map Revit versions to their corresponding API versions
+        private static readonly Dictionary<string, string> RevitVersionMap = new Dictionary<string, string>
+        {
+            { "2021", "Revit2021" },
+            { "2022", "Revit2022" },
+            { "2023", "Revit2023" },
+            { "2024", "Revit2024" },
+            { "2025", "Revit2025" }
+        };
         
         // Main method that runs the extraction process
-        public void ExtractEquipmentData()
+        public void ExtractEquipmentData(string specificProjectNumber = null)
         {
             try
             {
                 // Step 1: Get project file data from database
-                DataTable projectFiles = GetProjectFilesFromDatabase();
+                DataTable projectFiles = GetProjectFilesFromDatabase(specificProjectNumber);
+                
+                if (projectFiles.Rows.Count == 0)
+                {
+                    if (specificProjectNumber != null)
+                    {
+                        Console.WriteLine($"No project found with number: {specificProjectNumber}");
+                    }
+                    else
+                    {
+                        Console.WriteLine("No projects found in database.");
+                    }
+                    return;
+                }
                 
                 // Step 2: Process each Revit file
                 foreach (DataRow row in projectFiles.Rows)
                 {
-                    string projectNumber = row["ProjectNumber"].ToString();
-                    string projectName = row["ProjectName"].ToString();
-                    string revitFilePath = row["RevitFilePath"].ToString();
+                    string projectNumber = row["ProjectNum"].ToString();
+                    string basePath = row["Filepath"].ToString();
                     string revitVersion = row["RevitVersion"].ToString();
-                    string revitFileGUID = row["RevitFileGUID"].ToString();
                     
-                    Console.WriteLine($"Processing project {projectNumber}: {projectName}");
-                    Console.WriteLine($"Revit file: {revitFilePath} (Version: {revitVersion})");
-                    
-                    // Update processing status
-                    UpdateProjectFileStatus(projectNumber, "Processing");
+                    Console.WriteLine($"Processing project {projectNumber}");
+                    Console.WriteLine($"Base path: {basePath}");
+                    Console.WriteLine($"Revit version: {revitVersion}");
                     
                     try
                     {
-                        // Step 3: Extract equipment data from the Revit file
-                        List<EquipmentData> equipmentList = ExtractEquipmentFromRevitFile(revitFilePath, revitVersion);
+                        // Verify the Revit version is supported
+                        if (!RevitVersionMap.ContainsKey(revitVersion))
+                        {
+                            Console.WriteLine($"Unsupported Revit version {revitVersion} for project {projectNumber}. Skipping.");
+                            continue;
+                        }
                         
-                        // Step 4: Store the extracted data back to the database
-                        StoreEquipmentDataInDatabase(projectNumber, revitFileGUID, equipmentList);
+                        // Step 3: Find and process Revit files
+                        List<string> revitFiles = FindRevitFiles(basePath);
                         
-                        // Update processing status to completed
-                        UpdateProjectFileStatus(projectNumber, "Completed");
+                        if (revitFiles.Count == 0)
+                        {
+                            Console.WriteLine($"No Revit files found for project {projectNumber}. Continuing to next project.");
+                            continue;
+                        }
                         
-                        Console.WriteLine($"Completed extraction for project {projectNumber}. {equipmentList.Count} equipment items found.");
+                        foreach (string revitFilePath in revitFiles)
+                        {
+                            try
+                            {
+                                // Generate a unique GUID for this file
+                                string revitFileGUID = Guid.NewGuid().ToString();
+                                
+                                // Step 4: Extract equipment data from the Revit file
+                                List<EquipmentData> equipmentList = ExtractEquipmentFromRevitFile(revitFilePath, revitVersion);
+                                
+                                // Step 5: Store the extracted data back to the database
+                                StoreEquipmentDataInDatabase(projectNumber, revitFileGUID, equipmentList);
+                                
+                                Console.WriteLine($"Completed extraction for file {Path.GetFileName(revitFilePath)}. {equipmentList.Count} equipment items found.");
+                            }
+                            catch (Exception ex)
+                            {
+                                Console.WriteLine($"Error processing file {revitFilePath}: {ex.Message}");
+                                // Continue to next file
+                                continue;
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
-                        // Update processing status to failed
-                        UpdateProjectFileStatus(projectNumber, "Failed");
                         Console.WriteLine($"Error processing project {projectNumber}: {ex.Message}");
+                        // Continue to next project
+                        continue;
                     }
                 }
                 
@@ -71,30 +118,44 @@ namespace RevitEquipmentExtractor
         }
         
         // Get project files from the database
-        private DataTable GetProjectFilesFromDatabase()
+        private DataTable GetProjectFilesFromDatabase(string specificProjectNumber = null)
         {
             DataTable projectFiles = new DataTable();
             
-            using (SqlConnection connection = new SqlConnection(ConnectionString))
+            using (OleDbConnection connection = new OleDbConnection(ConnectionString))
             {
                 connection.Open();
                 
                 string query = @"
                     SELECT 
-                        ProjectNumber, 
-                        ProjectName, 
-                        RevitFilePath, 
-                        RevitVersion,
-                        RevitFileGUID
+                        ProjectNum, 
+                        Filepath, 
+                        RevitVersion
                     FROM 
-                        ProjectFiles 
+                        FilepathTable
                     WHERE 
-                        RevitFilePath IS NOT NULL
-                        AND ProcessingStatus = 'Pending'";
+                        Filepath IS NOT NULL 
+                        AND Filepath <> ''
+                        AND RevitVersion IS NOT NULL
+                        AND RevitVersion <> 'N/A'
+                        AND RevitVersion <> ''
+                        AND CInt(RevitVersion) >= 2021
+                        AND CInt(RevitVersion) <= 2025";
                 
-                using (SqlCommand command = new SqlCommand(query, connection))
+                // Add project number filter if specified
+                if (!string.IsNullOrEmpty(specificProjectNumber))
                 {
-                    using (SqlDataAdapter adapter = new SqlDataAdapter(command))
+                    query += " AND ProjectNum = @ProjectNum";
+                }
+                
+                using (OleDbCommand command = new OleDbCommand(query, connection))
+                {
+                    if (!string.IsNullOrEmpty(specificProjectNumber))
+                    {
+                        command.Parameters.AddWithValue("@ProjectNum", specificProjectNumber);
+                    }
+                    
+                    using (OleDbDataAdapter adapter = new OleDbDataAdapter(command))
                     {
                         adapter.Fill(projectFiles);
                     }
@@ -105,28 +166,60 @@ namespace RevitEquipmentExtractor
             return projectFiles;
         }
         
-        // Update project file processing status
-        private void UpdateProjectFileStatus(string projectNumber, string status)
+        // Find Revit files in the specified path pattern
+        private List<string> FindRevitFiles(string basePath)
         {
-            using (SqlConnection connection = new SqlConnection(ConnectionString))
+            List<string> revitFiles = new List<string>();
+            
+            try
             {
-                connection.Open();
-                
-                string query = @"
-                    UPDATE ProjectFiles 
-                    SET 
-                        ProcessingStatus = @Status,
-                        LastProcessedDate = GETDATE()
-                    WHERE 
-                        ProjectNumber = @ProjectNumber";
-                
-                using (SqlCommand command = new SqlCommand(query, connection))
+                if (string.IsNullOrEmpty(basePath))
                 {
-                    command.Parameters.AddWithValue("@ProjectNumber", projectNumber);
-                    command.Parameters.AddWithValue("@Status", status);
-                    command.ExecuteNonQuery();
+                    Console.WriteLine("Base path is empty or null.");
+                    return revitFiles;
                 }
+
+                // Construct the search pattern
+                string searchPath = Path.Combine(basePath, "06 Revit");
+                
+                if (!Directory.Exists(searchPath))
+                {
+                    Console.WriteLine($"Directory not found: {searchPath}");
+                    return revitFiles;
+                }
+                
+                // Find all MEP folders
+                string[] mepFolders = Directory.GetDirectories(searchPath, "*MEP*", SearchOption.TopDirectoryOnly);
+                
+                if (mepFolders.Length == 0)
+                {
+                    Console.WriteLine($"No MEP folders found in {searchPath}");
+                    return revitFiles;
+                }
+                
+                foreach (string mepFolder in mepFolders)
+                {
+                    try
+                    {
+                        // Find all .rvt files in the MEP folder
+                        string[] files = Directory.GetFiles(mepFolder, "*.rvt", SearchOption.AllDirectories);
+                        revitFiles.AddRange(files);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine($"Error searching in MEP folder {mepFolder}: {ex.Message}");
+                        continue;
+                    }
+                }
+                
+                Console.WriteLine($"Found {revitFiles.Count} Revit files in {searchPath}");
             }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error finding Revit files: {ex.Message}");
+            }
+            
+            return revitFiles;
         }
         
         // Extract equipment data from a Revit file
@@ -154,9 +247,13 @@ namespace RevitEquipmentExtractor
                 
                 try
                 {
-                    // Get all mechanical equipment elements
+                    // Get all equipment elements from the three categories
                     FilteredElementCollector mechanicalCollector = new FilteredElementCollector(document)
                         .OfCategory(BuiltInCategory.OST_MechanicalEquipment)
+                        .WhereElementIsNotElementType();
+                        
+                    FilteredElementCollector plumbingCollector = new FilteredElementCollector(document)
+                        .OfCategory(BuiltInCategory.OST_PlumbingFixtures)
                         .WhereElementIsNotElementType();
                         
                     FilteredElementCollector electricalCollector = new FilteredElementCollector(document)
@@ -167,6 +264,16 @@ namespace RevitEquipmentExtractor
                     foreach (Element element in mechanicalCollector)
                     {
                         EquipmentData equipment = ProcessEquipmentElement(element, "Mechanical");
+                        if (equipment != null)
+                        {
+                            equipmentList.Add(equipment);
+                        }
+                    }
+                    
+                    // Process plumbing equipment
+                    foreach (Element element in plumbingCollector)
+                    {
+                        EquipmentData equipment = ProcessEquipmentElement(element, "Plumbing");
                         if (equipment != null)
                         {
                             equipmentList.Add(equipment);
@@ -198,43 +305,29 @@ namespace RevitEquipmentExtractor
         }
         
         // Process a single equipment element
-        private EquipmentData ProcessEquipmentElement(Element element, string discipline)
+        private EquipmentData ProcessEquipmentElement(Element element, string category)
         {
             try
             {
-                // Get element ID and Family/Type names
+                // Get element ID
                 ElementId elementId = element.Id;
-                string elementName = element.Name;
                 
-                // Get Equipment Designation (shared parameter)
-                string equipmentDesignation = GetParameterValueAsString(element, "Equipment Designation");
+                // Get Equipment Designation (required parameter)
+                string equipmentDesignation = GetParameterValueAsString(element, "Equipment_Designation");
                 
-                // Get Equipment Type (parameter)
-                string equipmentType = GetParameterValueAsString(element, "Equipment Type");
-                if (string.IsNullOrEmpty(equipmentType))
+                // Skip if no equipment designation
+                if (string.IsNullOrEmpty(equipmentDesignation))
                 {
-                    // Try some alternate parameter names that might exist
-                    equipmentType = GetParameterValueAsString(element, "Type");
-                    if (string.IsNullOrEmpty(equipmentType))
-                    {
-                        equipmentType = GetParameterValueAsString(element, "Family");
-                    }
-                }
-                
-                // Check if we have the required data
-                if (string.IsNullOrEmpty(equipmentDesignation) && string.IsNullOrEmpty(equipmentType))
-                {
-                    return null; // Skip equipment with no useful data
+                    Console.WriteLine($"Warning: Element {elementId} has no Equipment_Designation. Skipping.");
+                    return null;
                 }
                 
                 // Create equipment data
                 var equipment = new EquipmentData
                 {
                     ElementId = elementId.IntegerValue,
-                    ElementName = elementName,
-                    Discipline = discipline,
-                    EquipmentDesignation = equipmentDesignation,
-                    EquipmentType = equipmentType
+                    Equipment_Designation = equipmentDesignation,
+                    ElementCategory = category
                 };
                 
                 // Calculate data hash
@@ -253,7 +346,7 @@ namespace RevitEquipmentExtractor
         private string CalculateElementDataHash(EquipmentData equipment)
         {
             // Create a string containing all relevant data
-            string dataToHash = $"{equipment.ElementId}|{equipment.ElementName}|{equipment.Discipline}|{equipment.EquipmentDesignation}|{equipment.EquipmentType}";
+            string dataToHash = $"{equipment.ElementId}|{equipment.Equipment_Designation}|{equipment.ElementCategory}";
             
             // Calculate SHA-256 hash
             using (SHA256 sha256 = SHA256.Create())
@@ -326,26 +419,124 @@ namespace RevitEquipmentExtractor
         // Store equipment data in database
         private void StoreEquipmentDataInDatabase(string projectNumber, string revitFileGUID, List<EquipmentData> equipmentList)
         {
-            using (SqlConnection connection = new SqlConnection(ConnectionString))
+            using (OleDbConnection connection = new OleDbConnection(ConnectionString))
             {
                 connection.Open();
                 
                 foreach (EquipmentData equipment in equipmentList)
                 {
-                    using (SqlCommand command = new SqlCommand("sp_UpdateEquipmentRecord", connection))
+                    // First, check if we need to update an existing record
+                    string checkQuery = @"
+                        SELECT TOP 1 ElementDataHash, VersionNumber 
+                        FROM ProjectEquipment 
+                        WHERE ProjectNumber = @ProjectNumber 
+                        AND Equipment_Designation = @Equipment_Designation 
+                        AND RecordStatus = 'Active' 
+                        ORDER BY VersionNumber DESC";
+                    
+                    string currentHash = null;
+                    int currentVersion = 0;
+                    
+                    using (OleDbCommand checkCommand = new OleDbCommand(checkQuery, connection))
                     {
-                        command.CommandType = CommandType.StoredProcedure;
+                        checkCommand.Parameters.AddWithValue("@ProjectNumber", projectNumber);
+                        checkCommand.Parameters.AddWithValue("@Equipment_Designation", equipment.Equipment_Designation);
                         
-                        command.Parameters.AddWithValue("@ProjectNumber", projectNumber);
-                        command.Parameters.AddWithValue("@RevitFileGUID", revitFileGUID);
-                        command.Parameters.AddWithValue("@ElementId", equipment.ElementId);
-                        command.Parameters.AddWithValue("@ElementName", equipment.ElementName ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@Discipline", equipment.Discipline);
-                        command.Parameters.AddWithValue("@EquipmentDesignation", equipment.EquipmentDesignation ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@EquipmentType", equipment.EquipmentType ?? (object)DBNull.Value);
-                        command.Parameters.AddWithValue("@ElementDataHash", equipment.ElementDataHash);
+                        using (OleDbDataReader reader = checkCommand.ExecuteReader())
+                        {
+                            if (reader.Read())
+                            {
+                                currentHash = reader["ElementDataHash"].ToString();
+                                currentVersion = Convert.ToInt32(reader["VersionNumber"]);
+                            }
+                        }
+                    }
+                    
+                    if (currentHash == null)
+                    {
+                        // Insert new record
+                        string insertQuery = @"
+                            INSERT INTO ProjectEquipment (
+                                ProjectNumber, RevitFileGUID, ElementId, 
+                                Equipment_Designation, ElementCategory, ElementDataHash,
+                                RecordStatus, VersionNumber, FirstExtractedDate, LastExtractedDate
+                            ) VALUES (
+                                @ProjectNumber, @RevitFileGUID, @ElementId,
+                                @Equipment_Designation, @ElementCategory, @ElementDataHash,
+                                'Active', 1, NOW(), NOW()
+                            )";
                         
-                        command.ExecuteNonQuery();
+                        using (OleDbCommand command = new OleDbCommand(insertQuery, connection))
+                        {
+                            command.Parameters.AddWithValue("@ProjectNumber", projectNumber);
+                            command.Parameters.AddWithValue("@RevitFileGUID", revitFileGUID);
+                            command.Parameters.AddWithValue("@ElementId", equipment.ElementId);
+                            command.Parameters.AddWithValue("@Equipment_Designation", equipment.Equipment_Designation);
+                            command.Parameters.AddWithValue("@ElementCategory", equipment.ElementCategory);
+                            command.Parameters.AddWithValue("@ElementDataHash", equipment.ElementDataHash);
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                    else if (currentHash != equipment.ElementDataHash)
+                    {
+                        // Update existing record status
+                        string updateQuery = @"
+                            UPDATE ProjectEquipment 
+                            SET RecordStatus = 'Modified',
+                                LastUpdatedDate = NOW()
+                            WHERE ProjectNumber = @ProjectNumber 
+                            AND Equipment_Designation = @Equipment_Designation 
+                            AND VersionNumber = @VersionNumber";
+                        
+                        using (OleDbCommand command = new OleDbCommand(updateQuery, connection))
+                        {
+                            command.Parameters.AddWithValue("@ProjectNumber", projectNumber);
+                            command.Parameters.AddWithValue("@Equipment_Designation", equipment.Equipment_Designation);
+                            command.Parameters.AddWithValue("@VersionNumber", currentVersion);
+                            command.ExecuteNonQuery();
+                        }
+                        
+                        // Insert new version
+                        string insertQuery = @"
+                            INSERT INTO ProjectEquipment (
+                                ProjectNumber, RevitFileGUID, ElementId, 
+                                Equipment_Designation, ElementCategory, ElementDataHash,
+                                RecordStatus, VersionNumber, FirstExtractedDate, LastExtractedDate
+                            ) VALUES (
+                                @ProjectNumber, @RevitFileGUID, @ElementId,
+                                @Equipment_Designation, @ElementCategory, @ElementDataHash,
+                                'Active', @NewVersion, NOW(), NOW()
+                            )";
+                        
+                        using (OleDbCommand command = new OleDbCommand(insertQuery, connection))
+                        {
+                            command.Parameters.AddWithValue("@ProjectNumber", projectNumber);
+                            command.Parameters.AddWithValue("@RevitFileGUID", revitFileGUID);
+                            command.Parameters.AddWithValue("@ElementId", equipment.ElementId);
+                            command.Parameters.AddWithValue("@Equipment_Designation", equipment.Equipment_Designation);
+                            command.Parameters.AddWithValue("@ElementCategory", equipment.ElementCategory);
+                            command.Parameters.AddWithValue("@ElementDataHash", equipment.ElementDataHash);
+                            command.Parameters.AddWithValue("@NewVersion", currentVersion + 1);
+                            command.ExecuteNonQuery();
+                        }
+                    }
+                    else
+                    {
+                        // Just update the last extracted date
+                        string updateQuery = @"
+                            UPDATE ProjectEquipment 
+                            SET LastExtractedDate = NOW()
+                            WHERE ProjectNumber = @ProjectNumber 
+                            AND Equipment_Designation = @Equipment_Designation 
+                            AND VersionNumber = @VersionNumber";
+                        
+                        using (OleDbCommand command = new OleDbCommand(updateQuery, connection))
+                        {
+                            command.Parameters.AddWithValue("@ProjectNumber", projectNumber);
+                            command.Parameters.AddWithValue("@Equipment_Designation", equipment.Equipment_Designation);
+                            command.Parameters.AddWithValue("@VersionNumber", currentVersion);
+                            command.ExecuteNonQuery();
+                        }
                     }
                 }
             }
@@ -356,10 +547,8 @@ namespace RevitEquipmentExtractor
     public class EquipmentData
     {
         public int ElementId { get; set; }
-        public string ElementName { get; set; }
-        public string Discipline { get; set; } // Mechanical or Electrical
-        public string EquipmentDesignation { get; set; }
-        public string EquipmentType { get; set; }
+        public string Equipment_Designation { get; set; }
+        public string ElementCategory { get; set; } // Mechanical, Plumbing, or Electrical
         public string ElementDataHash { get; set; }
     }
     
@@ -372,7 +561,20 @@ namespace RevitEquipmentExtractor
             Console.WriteLine("-------------------------");
             
             RevitEquipmentExtractor extractor = new RevitEquipmentExtractor();
-            extractor.ExtractEquipmentData();
+            
+            // Check if a specific project number was provided
+            string projectNumber = args.Length > 0 ? args[0] : null;
+            
+            if (projectNumber != null)
+            {
+                Console.WriteLine($"Running extraction for project: {projectNumber}");
+                extractor.ExtractEquipmentData(projectNumber);
+            }
+            else
+            {
+                Console.WriteLine("No project number specified. Running extraction for all projects.");
+                extractor.ExtractEquipmentData();
+            }
             
             Console.WriteLine("Press any key to exit.");
             Console.ReadKey();

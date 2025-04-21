@@ -1,6 +1,63 @@
 # Revit Equipment Extractor
 
-A tool for extracting equipment data from Revit files and storing it in a SQL Server database.
+This tool extracts equipment data from Revit files and stores it in an Access database.
+
+## Prerequisites
+
+1. **Autodesk Revit 2023**
+   - The tool is built against Revit 2023 API
+   - Make sure Revit is installed in the default location
+
+2. **Microsoft Access Database Engine 2016 Redistributable**
+   - Download from: https://www.microsoft.com/en-us/download/details.aspx?id=54920
+   - Choose the appropriate version (32-bit or 64-bit) based on your system
+   - Note: If you have 64-bit Office installed, you must use the 64-bit version
+   - If you have 32-bit Office installed, you must use the 32-bit version
+
+3. **.NET Framework 4.8**
+   - Should be included with Windows 10/11
+   - If not installed, download from: https://dotnet.microsoft.com/download/dotnet-framework/net48
+
+## Installation
+
+1. Install the Microsoft Access Database Engine 2016 Redistributable
+2. Build the project using Visual Studio 2019 or later
+3. Copy the compiled executable to your desired location
+
+## Configuration
+
+1. Update the connection string in `RevitEquipmentExtractor.cs` to point to your Access database:
+   ```csharp
+   private const string ConnectionString = @"Provider=Microsoft.ACE.OLEDB.12.0;Data Source=path\to\your\database.accdb;";
+   ```
+
+2. Make sure your Access database has:
+   - `FilepathTable` with columns: ID, ProjectNum, Filepath, RevitVersion
+   - `ProjectEquipment` table (created by running the SQL script)
+
+## Usage
+
+1. Run the executable
+2. The program will:
+   - Read project information from FilepathTable
+   - Find Revit files in the specified paths
+   - Extract equipment data from the files
+   - Store the data in the ProjectEquipment table
+
+## Troubleshooting
+
+1. If you get an error about the Access Database Engine:
+   - Make sure you have the correct version installed (32-bit or 64-bit)
+   - Uninstall any existing version before installing the new one
+
+2. If you get an error about Revit API:
+   - Make sure Revit 2023 is installed
+   - Check that the RevitAPI.dll and RevitAPIUI.dll are in the correct location
+
+3. If you get database connection errors:
+   - Verify the database path in the connection string
+   - Make sure the database is not locked by another user
+   - Check that you have read/write permissions to the database file
 
 ## Overview
 
@@ -13,39 +70,6 @@ This tool extracts mechanical and electrical equipment data from Revit files and
 - Stores data in a SQL Server database
 - Handles both instance and type parameters
 - Provides detailed logging of the extraction process
-
-## Prerequisites
-
-- .NET Framework 4.8 or later
-- SQL Server 2016 or later
-- Autodesk Revit API (version matching your Revit installation)
-- Access to Revit files to be processed
-
-## Installation
-
-1. Clone the repository
-2. Run the SQL setup script (`sql/DatabaseSetup.sql`) to create the required database tables
-3. Update the connection string in `RevitEquipmentExtractor.cs` with your database details
-4. Build the solution
-
-## Usage
-
-1. Add project files to the `ProjectFiles` table in the database:
-   ```sql
-   INSERT INTO ProjectFiles (ProjectNumber, ProjectName, RevitFilePath, RevitVersion)
-   VALUES ('PROJ001', 'Sample Project', 'C:\Projects\Sample.rvt', '2023');
-   ```
-
-2. Run the application:
-   ```
-   RevitEquipmentExtractor.exe
-   ```
-
-3. The tool will:
-   - Read project information from the database
-   - Process each Revit file
-   - Extract equipment data
-   - Store the results in the `ProjectEquipment` table
 
 ## Database Schema
 
