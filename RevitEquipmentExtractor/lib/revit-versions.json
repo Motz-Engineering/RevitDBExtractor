@@ -1,0 +1,30 @@
+{
+    "supportedVersions": [
+        {
+            "version": "2023",
+            "apiVersion": "2023.0.0",
+            "minBuild": "23.0.0.0",
+            "maxBuild": "23.999.999.999"
+        },
+        {
+            "version": "2022",
+            "apiVersion": "2022.0.0",
+            "minBuild": "22.0.0.0",
+            "maxBuild": "22.999.999.999"
+        },
+        {
+            "version": "2021",
+            "apiVersion": "2021.0.0",
+            "minBuild": "21.0.0.0",
+            "maxBuild": "21.999.999.999"
+        },
+        {
+            "version": "2020",
+            "apiVersion": "2020.0.0",
+            "minBuild": "20.0.0.0",
+            "maxBuild": "20.999.999.999"
+        }
+    ],
+    "defaultVersion": "2023",
+    "apiPackageName": "Revit_All_Main_Versions_API_x64"
+} 
