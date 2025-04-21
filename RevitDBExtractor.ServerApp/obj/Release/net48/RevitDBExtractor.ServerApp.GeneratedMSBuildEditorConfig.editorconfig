@@ -1,8 +1,0 @@
-is_global = true
-build_property.RootNamespace = RevitDBExtractor.ServerApp
-build_property.ProjectDir = C:\Users\Matthew Houston\source\repos\Motz-Engineering\RevitDBExtractor\RevitDBExtractor.ServerApp\
-build_property.EnableComHosting = 
-build_property.EnableGeneratedComInterfaceComImportInterop = 
-build_property.CsWinRTUseWindowsUIXamlProjections = false
-build_property.EffectiveAnalysisLevelStyle = 
-build_property.EnableCodeStyleSeverity = 
